@@ -1,4 +1,4 @@
-
+IMPORT util
 --  Callback Functions
 PUBLIC TYPE default_function_type FUNCTION () RETURNS STRING 
 
@@ -17,6 +17,7 @@ PUBLIC TYPE column_type RECORD
     type STRING,
     key BOOLEAN,
     label STRING,
+    notnull BOOLEAN,
     widget STRING,
     widget_properties STRING,
     default_function default_function_type,
@@ -28,6 +29,7 @@ END RECORD
 -- What information do we have about a database table
 PUBLIC TYPE table_type RECORD
     name STRING,
+    form STRING,
     title STRING,
     order_by STRING,
     where_clause STRING,
@@ -52,16 +54,24 @@ DEFINE f ui.Form
 
 
 
+
+
+
+
+
+
 FUNCTION input()
 DEFINE ev STRING
 
+    IF data.form IS NOT NULL THEN
+        OPEN WINDOW w WITH FORM data.form
+    ELSE
+        OPEN WINDOW w WITH 1 ROWS, 1 COLUMNS
+        CALL create_grid(ui.Window.getCurrent().createForm(data.name).getNode())
+    END IF
 
-    OPTIONS INPUT WRAP
-    OPTIONS FIELD ORDER FORM
-
-    OPEN WINDOW w WITH FORM "tablename"  #TODO replace with dynamic create form
-    CALL ui.Window.getCurrent().setText(data.title)
     LET f = ui.Window.getCurrent().getForm()
+    CALL ui.Window.getCurrent().setText(data.title)
 
     LET add_mode = TRUE
     
@@ -88,6 +98,7 @@ DEFINE ev STRING
                 -- CALL on_change_field()
             WHEN ev MATCHES "AFTER FIELD*"
                 CALL after_field()
+                -- move field into record
             WHEN ev  = "ON ACTION close" OR ev = "ON ACTION cancel"
                 LET int_flag = 0
                 EXIT WHILE
@@ -107,7 +118,7 @@ END FUNCTION
 
 
 
-FUNCTION state()
+PRIVATE FUNCTION state()
 DEFINE i INTEGER
 DEFINE vfn simple_rule_function_type
 DEFINE efn simple_rule_function_type
@@ -126,7 +137,7 @@ END FUNCTION
 
 
 
-FUNCTION set_default_values()
+PRIVATE FUNCTION set_default_values()
 DEFINE i INTEGER
 DEFINE value STRING
 DEFINE fn default_function_type
@@ -135,22 +146,24 @@ DEFINE fn default_function_type
         LET fn = data.column[i].default_function
         LET value = fn()
         CALL d.setFieldValue(data.column[i].name, value)
+        -- TODO also set record value
     END FOR
 END FUNCTION
 
 
 
-FUNCTION before_field()
+PRIVATE FUNCTION before_field()
 END FUNCTION
 
 
 
-FUNCTION on_change_field()
+PRIVATE FUNCTION on_change_field()
+    -- TODO move field into record
 END FUNCTION
 
 
 
-FUNCTION after_field()
+PRIVATE FUNCTION after_field()
 DEFINE fn value_valid_function_type
 DEFINE value STRING
 DEFINE idx INTEGER
@@ -162,14 +175,14 @@ DEFINE error_text STRING
     LET value = d.getFieldValue(d.getCurrentItem())
     CALL fn(value) RETURNING ok, error_text
     IF NOT ok THEN
-        ERROR error_text
+        CALL show_error_dialog(error_text, TRUE)
         CALL d.nextField("+CURR")
     END IF
 END FUNCTION
 
 
 
-FUNCTION accept()
+PRIVATE FUNCTION accept()
 
 DEFINE i INTEGER
 DEFINE ok BOOLEAN
@@ -196,10 +209,11 @@ DEFINE dfn record_valid_function_type
                 LET value = d.getFieldValue(data.column[i].name)
                 CALL fn(value) RETURNING ok, error_text
 
-            #    CALL data.column[i].valid_function(d.getFieldValue(data.column[i].name)) RETURNING ok, error_text
+                # TODO investigate why the line below cant be used instead of 3 above
+                #CALL data.column[i].valid_function(d.getFieldValue(data.column[i].name)) RETURNING ok, error_text
                 
                 IF NOT ok THEN
-                    ERROR error_text
+                    CALL show_error_dialog(error_text, TRUE)
                     CALL d.nextField(data.column[i].name)
                     RETURN FALSE
                 END IF
@@ -209,7 +223,7 @@ DEFINE dfn record_valid_function_type
         LET kfn = data.key_valid_function
         CALL kfn() RETURNING ok, error_text, fieldname
         IF NOT ok THEN
-            ERROR error_text
+            CALL show_error_dialog(error_text, TRUE)
             CALL d.nextField(nvl(fieldname,first_key_field))
             RETURN FALSE
         END IF
@@ -225,7 +239,7 @@ DEFINE dfn record_valid_function_type
             LET value = d.getFieldValue(data.column[i].name)
             CALL fn(value) RETURNING ok, error_text
             IF NOT ok THEN
-                ERROR error_text
+                CALL show_error_dialog(error_text, TRUE)
                 CALL d.nextField(data.column[i].name)
                 RETURN FALSE
             END IF
@@ -235,12 +249,90 @@ DEFINE dfn record_valid_function_type
     LET dfn = data.data_valid_function
     CALL dfn() RETURNING ok, error_text, fieldname
     IF NOT ok THEN
-        ERROR error_text
+        CALL show_error_dialog(error_text, TRUE)
         CALL d.nextField(nvl(fieldname,first_data_field))
         RETURN FALSE
     END IF    
     RETURN TRUE
 END FUNCTION
+
+
+
+PUBLIC FUNCTION create_grid(parent_node om.DomNode)
+DEFINE vbox_node, group_node, grid_node, field_node, label_node, widget_node om.DomNode
+DEFINE i,j,k INTEGER
+
+DEFINE json_attributes util.JSONObject
+
+    LET vbox_node = parent_node.createChild("VBox") -- TODO Do without VBOX so can use GRIDCHILDRENINPARENT
+    -- Two group boxes, one for key fields, one for data fields
+    FOR j = 1 TO 2
+        LET group_node = vbox_node.createChild("Group")
+        CALL group_node.setAttribute("text", IIF(j=1,"Key Field(s)", "Data Field(s)"))
+        LET grid_node = group_node.createChild("Grid")
+        FOR i = 1 To data.column.getLength()
+            IF j = 1 AND data.column[i].key 
+            OR j = 2 AND NOT data.column[i].key THEN
+                LET label_node =  grid_node.createChild("Label")
+                CALL label_node.setAttribute("posX",0)
+                CALL label_node.setAttribute("posY",i-1)
+                CALL label_node.setAttribute("text", data.column[i].label)
+                CALL label_node.setAttribute("gridWidth", 10)
+        
+                LET field_node = grid_node.createChild("FormField")
+                CALL field_node.setAttribute("name",SFMT("formonly.%1",data.column[i].name))
+                CALL field_node.setAttribute("colName",data.column[i].name)
+                CALL field_node.setAttribute("fieldId",i-1)
+                CALL field_node.setAttribute("sqlTabName","formonly")
+                CALL field_node.setAttribute("tabIndex",i)
+                IF data.column[i].notnull THEN
+                    CALL field_node.setAttribute("notNull", "1")
+                END IF
+
+                LET widget_node = field_node.createChild(nvl(data.column[i].widget,"Edit"))
+                CALL widget_node.setAttribute("posX", 10)
+                CALL widget_node.setAttribute("posY", i-1)
+                CALL widget_node.setAttribute("width", 10)
+                CALL widget_node.setAttribute("gridWidth", 10)
+
+                IF data.column[i].widget_properties IS NOT NULL THEN
+                    LET json_attributes = util.JSONObject.parse(data.column[i].widget_properties)
+                    FOR k = 1 TO json_attributes.getLength()
+                        CALL widget_node.setAttribute(json_attributes.name(k), json_attributes.get(json_attributes.name(k)))
+                    END FOR
+                END IF
+            END IF
+        END FOR
+    END FOR
+
+    -- add a stretchable element at bottom of vbox to eat the remaining space
+    LET grid_node = vbox_node.createChild("Grid")
+    LET widget_node = grid_node.createChild("Image")
+    CALL widget_node.setAttribute("posX", 0)
+    CALL widget_node.setAttribute("posY", i)
+    CALL widget_node.setAttribute("width", 20)
+    CALL widget_node.setAttribute("gridWidth", 20)
+    CALL widget_node.setAttribute("image","empty")
+    CALL widget_node.setAttribute("sizePolicy", "stretch")
+    CALL widget_node.setAttribute("stretch", "both")
+END FUNCTION
+
+
+FUNCTION create_table_sql()
+DEFINE i INTEGER
+DEFINE sb base.StringBuffer
+
+    LET sb = base.StringBuffer.create()
+    FOR i = 1 TO data.column.getLength()
+        IF i > 1 THEN
+            CALL sb.append(", ")
+        END IF
+        CALL sb.append(SFMT("%1 %2", data.column[i].name, data.column[i].type))
+    END FOR
+    RETURN sb.toString()
+END FUNCTION
+
+
 
 
 -- Stub Default Functions
@@ -273,4 +365,15 @@ DEFINE i INTEGER
     END FOR
     EXIT PROGRAM 1
 END FUNCTION
+
+
+PRIVATE FUNCTION show_error_dialog(text STRING, wait BOOLEAN)
+    IF wait THEN
+        CALL FGL_WINMESSAGE("Error", text, "stop")
+    ELSE
+        ERROR text
+    END IF
+END FUNCTION
+
+
 

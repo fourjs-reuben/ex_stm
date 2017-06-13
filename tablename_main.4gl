@@ -2,8 +2,13 @@ IMPORT FGL lib_stm            -- UI
 IMPORT FGL tablename          -- Business Rules
 
 MAIN
-
-    -- Set functions in tablename that will be called from ddinput
+    CLOSE WINDOW SCREEN
+    DEFER INTERRUPT
+    DEFER QUIT
+    OPTIONS FIELD ORDER FORM
+    OPTIONS INPUT WRAP
+    
     CALL tablename.init()
+    DISPLAY lib_stm.create_table_sql()
     CALL lib_stm.input()
 END MAIN

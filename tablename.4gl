@@ -1,13 +1,11 @@
 IMPORT FGL lib_stm
 
 TYPE tablenameType RECORD
-    field1 STRING,
-    field2 STRING,
-    field3 DATE
+    key_fld INTEGER, char_fld CHAR(10), date_fld DATE, checkbox_fld CHAR(1), integer_fld INTEGER, decimal_fld DECIMAL(11,2), from INTEGER, to INTEGER
 END RECORD
 
 DEFINE arr DYNAMIC ARRAY OF tablenameType
-DEFINE rec DYNAMIC ARRAY OF tablenameType
+DEFINE rec tablenameType
 
 
 
@@ -16,13 +14,57 @@ FUNCTION init()
 DEFINE i INTEGER
 
     LET data.name = "my_table"
-    LET data.order_by = "field1"
+    LET data.order_by = "key_fld"
     LET data.where_clause = "1=1"
     LET data.title = "My Table"
 
-    LET data.column[1].name = "field1"   LET data.column[1].type = "STRING" LET data.column[1].key = TRUE
-    LET data.column[2].name = "field2"   LET data.column[2].type = "STRING" LET data.column[2].key = FALSE
-    LET data.column[3].name = "field3"   LET data.column[3].type = "DATE"   LET data.column[3].key = FALSE    
+    LET data.column[1].name = "key_fld"     
+    LET data.column[1].label = "Key 1"   
+    LET data.column[1].type = "INTEGER" 
+    LET data.column[1].key = TRUE
+    LET data.column[1].notnull = TRUE
+    
+    LET data.column[2].name = "char_fld"   
+    LET data.column[2].label = "Char" 
+    LET data.column[2].type = "CHAR(10)" 
+    LET data.column[2].key = FALSE
+
+    LET data.column[3].name = "date_fld"   
+    LET data.column[3].label = "DateEdit" 
+    LET data.column[3].type = "DATE"   
+    LET data.column[3].key = FALSE    
+    LET data.column[3].widget = "DateEdit"
+
+    LET data.column[4].name = "checkbox_fld"   
+    LET data.column[4].label = "CheckBox" 
+    LET data.column[4].type = "CHAR(1)"   
+    LET data.column[4].key = FALSE    
+    LET data.column[4].notnull = TRUE
+    LET data.column[4].widget = "CheckBox"
+    LET data.column[4].widget_properties = '{"valueChecked": "Y", "valueUnchecked": "N"}'
+
+    LET data.column[5].name = "integer_fld"   
+    LET data.column[5].label = "Integer" 
+    LET data.column[5].type = "INTEGER" 
+    LET data.column[5].key = FALSE
+    
+    LET data.column[6].name = "decimal_fld"   
+    LET data.column[6].label = "Decimal" 
+    LET data.column[6].type = "DECIMAL(11,2)" 
+    LET data.column[6].key = FALSE
+    LET data.column[6].widget_properties = '{"format": "###,##&.&&"}'
+
+    LET data.column[7].name = "from"   
+    LET data.column[7].label = "From" 
+    LET data.column[7].notnull = TRUE
+    LET data.column[7].type = "INTEGER" 
+    LET data.column[7].key = FALSE
+
+    LET data.column[8].name = "to"   
+    LET data.column[8].label = "To"
+    LET data.column[8].notnull = TRUE 
+    LET data.column[8].type = "INTEGER" 
+    LET data.column[8].key = FALSE
 
      -- Set initially to stub function
     FOR i = 1 TO data.column.getLength()
@@ -46,8 +88,12 @@ DEFINE i INTEGER
 
    
     -- Add here as defined per column
-    LET data.column[3].default_function = FUNCTION field3_default
-    LET data.column[3].valid_function = FUNCTION field3_valid
+    LET data.column[3].default_function = FUNCTION date_fld_default
+    LET data.column[3].valid_function = FUNCTION date_fld_valid
+
+    LET data.column[4].default_function = FUNCTION cbox_fld_default
+
+    LET data.column[5].valid_function = FUNCTION integer_fld_valid
 END FUNCTION
 
 
@@ -92,6 +138,11 @@ END FUNCTION
 
 -- Record validation
 FUNCTION data_valid() RETURNS (BOOLEAN, STRING, STRING)
+    IF rec.from < rec.to THEN
+        #OK
+    ELSE
+        RETURN FALSE, "From must be before to", "from"
+    END IF
     RETURN TRUE, NULL, NULL
 END FUNCTION
 
@@ -102,14 +153,32 @@ END FUNCTION
 
 
 -- Column level rules
-
-FUNCTION field3_default() RETURNS STRING
+FUNCTION date_fld_default() RETURNS STRING
     RETURN TODAY
 END FUNCTION
 
-FUNCTION field3_valid(value STRING) RETURNS (BOOLEAN, STRING)
+FUNCTION date_fld_valid(value STRING) RETURNS (BOOLEAN, STRING)
     IF value <= TODAY THEN
         RETURN FALSE, "Date must be after today"
+    END IF
+   
+    RETURN TRUE, ""
+END FUNCTION
+
+FUNCTION cbox_fld_default() RETURNS STRING
+    RETURN "Y"
+END FUNCTION
+
+FUNCTION integer_fld_valid(value STRING) RETURNS (BOOLEAN, STRING)
+    IF value > 0 THEN
+        #OK
+    ELSE
+        RETURN FALSE, "Integer must be positive"
+    END IF
+     IF value MOD 2 = 0 THEN
+        #OK
+    ELSE
+        RETURN FALSE, "Integer must be even"
     END IF
     RETURN TRUE, ""
 END FUNCTION
