@@ -11,6 +11,9 @@ PUBLIC TYPE simple_row_rule_with_error_function_type FUNCTION (row INTEGER) RETU
 PUBLIC TYPE value_valid_function_type FUNCTION (value STRING) RETURNS (BOOLEAN, STRING)
 PUBLIC TYPE record_valid_function_type FUNCTION() RETURNS (BOOLEAN, STRING, STRING)
 
+PUBLIC TYPE set_function_type FUNCTION (fieldname STRING, value STRING)
+PUBLIC TYPE get_function_type FUNCTION (fieldname STRING) RETURNS (STRING)
+
 -- What information do we have about a database column
 PUBLIC TYPE column_type RECORD
     name STRING,
@@ -33,6 +36,8 @@ PUBLIC TYPE table_type RECORD
     title STRING,
     order_by STRING,
     where_clause STRING,
+    set set_function_type,
+    get get_function_type,
     can_view_function simple_rule_function_type,
     can_add_function simple_rule_function_type,
     can_update_function simple_rule_function_type,
@@ -62,6 +67,9 @@ DEFINE f ui.Form
 
 FUNCTION input()
 DEFINE ev STRING
+DEFINE set_fn set_function_type
+
+    LET set_fn = data.set 
 
     IF data.form IS NOT NULL THEN
         OPEN WINDOW w WITH FORM data.form
@@ -95,18 +103,19 @@ DEFINE ev STRING
             WHEN ev MATCHES "BEFORE FIELD*"
                 -- CALL before_field()
             WHEN ev MATCHES "ON CHANGE *"
+                CALL set_fn(d.getCurrentItem(), d.getFieldValue(d.getCurrentItem()))
                 -- CALL on_change_field()
             WHEN ev MATCHES "AFTER FIELD*"
                 CALL after_field()
-                -- move field into record
             WHEN ev  = "ON ACTION close" OR ev = "ON ACTION cancel"
-                LET int_flag = 0
+                #LET int_flag = 0 TODO do we need this line
                 EXIT WHILE
-            WHEN ev = "ON ACTION accept"
+            WHEN ev = "AFTER INPUT"
                 IF accept() THEN
                     EXIT WHILE
                 END IF
-                
+            WHEN ev = "ON ACTION accept"
+                CALL d.accept()
             OTHERWISE
                 DISPLAY "OTHERWISE ", ev
         END CASE
@@ -141,12 +150,15 @@ PRIVATE FUNCTION set_default_values()
 DEFINE i INTEGER
 DEFINE value STRING
 DEFINE fn default_function_type
+DEFINE set_fn set_function_type
+
+    LET set_fn = data.set
 
     FOR i = 1 TO data.column.getLength()
         LET fn = data.column[i].default_function
         LET value = fn()
         CALL d.setFieldValue(data.column[i].name, value)
-        -- TODO also set record value
+        CALL set_fn(data.column[i].name, value)
     END FOR
 END FUNCTION
 

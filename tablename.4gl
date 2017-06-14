@@ -1,7 +1,7 @@
 IMPORT FGL lib_stm
 
 TYPE tablenameType RECORD
-    key_fld INTEGER, char_fld CHAR(10), date_fld DATE, checkbox_fld CHAR(1), integer_fld INTEGER, decimal_fld DECIMAL(11,2), from INTEGER, to INTEGER
+    key_fld INTEGER, char_fld CHAR(10), date_fld DATE, checkbox_fld CHAR(1), integer_fld INTEGER, decimal_fld DECIMAL(11,2), from_dmy DATE, to_dmy DATE
 END RECORD
 
 DEFINE arr DYNAMIC ARRAY OF tablenameType
@@ -18,6 +18,7 @@ DEFINE i INTEGER
     LET data.where_clause = "1=1"
     LET data.title = "My Table"
 
+    -- TODO see if replace indexes by array dictionary
     LET data.column[1].name = "key_fld"     
     LET data.column[1].label = "Key 1"   
     LET data.column[1].type = "INTEGER" 
@@ -54,17 +55,19 @@ DEFINE i INTEGER
     LET data.column[6].key = FALSE
     LET data.column[6].widget_properties = '{"format": "###,##&.&&"}'
 
-    LET data.column[7].name = "from"   
+    LET data.column[7].name = "from_dmy"   
     LET data.column[7].label = "From" 
     LET data.column[7].notnull = TRUE
-    LET data.column[7].type = "INTEGER" 
+    LET data.column[7].type = "DATE" 
     LET data.column[7].key = FALSE
+    LET data.column[7].widget = "DateEdit"
 
-    LET data.column[8].name = "to"   
+    LET data.column[8].name = "to_dmy"   
     LET data.column[8].label = "To"
     LET data.column[8].notnull = TRUE 
-    LET data.column[8].type = "INTEGER" 
+    LET data.column[8].type = "DATE" 
     LET data.column[8].key = FALSE
+    LET data.column[8].widget = "DateEdit"
 
      -- Set initially to stub function
     FOR i = 1 TO data.column.getLength()
@@ -73,6 +76,9 @@ DEFINE i INTEGER
         LET data.column[i].editable_function = FUNCTION lib_stm.field_editable
         LET data.column[i].valid_function = FUNCTION lib_stm.field_valid
     END FOR
+
+    LET data.set = FUNCTION set
+    LET data.get = FUNCTION get
     
     LET data.can_view_function = FUNCTION can_view
     LET data.can_add_function = FUNCTION can_add
@@ -95,6 +101,42 @@ DEFINE i INTEGER
 
     LET data.column[5].valid_function = FUNCTION integer_fld_valid
 END FUNCTION
+
+
+
+-- TODO should not need this set function
+FUNCTION set(fieldname STRING, value STRING)
+
+    DISPLAY fieldname, value
+    CASE fieldname
+        WHEN "key_fld" LET rec.key_fld = value
+        WHEN "char_fld" LET rec.char_fld = value
+        WHEN "date_fld" LET rec.date_fld = value
+        WHEN "checkbox_fld" LET rec.checkbox_fld = value
+        WHEN "integer_fld" LET rec.integer_fld = value
+        WHEN "decimal_fld" LET rec.decimal_fld = value
+        WHEN "from_dmy" LET rec.from_dmy = value
+        WHEN "to_dmy" LET rec.to_dmy = value
+    END CASE
+END FUNCTION
+
+
+-- TODO should not need this set function
+FUNCTION get(fieldname STRING) RETURNS STRING
+DEFINE value STRING
+
+    CASE
+        WHEN "key_fld" LET value = rec.key_fld
+        WHEN "char_fld" LET value = rec.char_fld
+        WHEN "date_fld" LET value = rec.date_fld
+        WHEN "checkbox_fld" LET value = rec.checkbox_fld
+        WHEN "integer_fld" LET value = rec.integer_fld
+        WHEN "decimal_fld" LET value = rec.decimal_fld
+        WHEN "from_dmy" LET value = rec.from_dmy
+        WHEN "to_dmy" LET value = rec.to_dmy
+    END CASE
+END FUNCTION
+
 
 
 
@@ -138,10 +180,11 @@ END FUNCTION
 
 -- Record validation
 FUNCTION data_valid() RETURNS (BOOLEAN, STRING, STRING)
-    IF rec.from < rec.to THEN
+
+    IF rec.from_dmy < rec.to_dmy THEN
         #OK
     ELSE
-        RETURN FALSE, "From must be before to", "from"
+        RETURN FALSE, "From must be before to", "from_dmy"
     END IF
     RETURN TRUE, NULL, NULL
 END FUNCTION
@@ -154,7 +197,7 @@ END FUNCTION
 
 -- Column level rules
 FUNCTION date_fld_default() RETURNS STRING
-    RETURN TODAY
+    RETURN TODAY+1
 END FUNCTION
 
 FUNCTION date_fld_valid(value STRING) RETURNS (BOOLEAN, STRING)

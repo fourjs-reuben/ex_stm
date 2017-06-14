@@ -61,7 +61,6 @@
         <File excludeFromLink="true" filePath="lib_stm.4gl"/>
       </VirtualFolder>
       <VirtualFolder label="tablename">
-        <File filePath="tablename.42f"/>
         <File excludeFromLink="true" filePath="tablename.4gl"/>
         <File filePath="tablename.per"/>
         <File filePath="tablename_main.4gl"/>
