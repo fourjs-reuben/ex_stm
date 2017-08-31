@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ANSI_X3.4-1968"?>
+<ToolBar>
+  <ToolBarItem name="query" />
+  <ToolBarItem name="add" />
+  <ToolBarItem name="update" />
+  <ToolBarItem name="remove" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="browse" />
+  <ToolBarItem name="bulkadd" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="first" />
+  <ToolBarItem name="previous" />
+  <ToolBarItem name="next" />
+  <ToolBarItem name="last" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="close" />
+</ToolBar>

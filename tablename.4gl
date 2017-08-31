@@ -72,6 +72,7 @@ DEFINE i INTEGER
      -- Set initially to stub function
     FOR i = 1 TO data.column.getLength()
         LET data.column[i].default_function = FUNCTION lib_stm.field_default
+        LET data.column[i].default_qbe_function = FUNCTION lib_stm.field_default
         LET data.column[i].visible_function = FUNCTION lib_stm.field_visible
         LET data.column[i].editable_function = FUNCTION lib_stm.field_editable
         LET data.column[i].valid_function = FUNCTION lib_stm.field_valid
@@ -107,7 +108,6 @@ END FUNCTION
 -- TODO should not need this set function
 FUNCTION set(fieldname STRING, value STRING)
 
-    DISPLAY fieldname, value
     CASE fieldname
         WHEN "key_fld" LET rec.key_fld = value
         WHEN "char_fld" LET rec.char_fld = value
@@ -121,7 +121,7 @@ FUNCTION set(fieldname STRING, value STRING)
 END FUNCTION
 
 
--- TODO should not need this set function
+-- TODO should not need this get function
 FUNCTION get(fieldname STRING) RETURNS STRING
 DEFINE value STRING
 
@@ -135,6 +135,7 @@ DEFINE value STRING
         WHEN "from_dmy" LET value = rec.from_dmy
         WHEN "to_dmy" LET value = rec.to_dmy
     END CASE
+    RETURN value
 END FUNCTION
 
 

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="ANSI_X3.4-1968"?>
+<ActionDefaultList>
+  <ActionDefault name="accept" text="OK" acceleratorName="Return" acceleratorName2="Enter" defaultView="yes" contextMenu="no"/>
+  <ActionDefault name="cancel" validate="no" text="Cancel" acceleratorName="Escape" defaultView="yes" contextMenu="no"/>
+  <ActionDefault name="close" validate="no" text="Close" image="fa-sign-out" acceleratorName="Alt-F4" defaultView="no" contextMenu="no"/>
+  <ActionDefault name="interrupt" text="Interrupt" contextMenu="no"/>
+  
+  <ActionDefault name="query" text="Query" image="fa-question" />
+  <ActionDefault name="add" text="Add" image="fa-plus"/>
+  <ActionDefault name="update" text="Update" image="fa-pencil" />
+  <ActionDefault name="remove" text="Remove" image="fa-minus"/>
+
+  <ActionDefault name="browse" text="Browse" image="fa-table"/>
+  <ActionDefault name="bulkadd" text="Bulk Add" image="fa-expand"/>
+
+  <ActionDefault name="first" text="First" image="fa-fast-backward"/>
+  <ActionDefault name="previous" text="Previous" image="fa-step-backward" />
+  <ActionDefault name="next" text="Next" image="fa-step-forward" />
+  <ActionDefault name="last" text="Last" image="fa-fast-forward" />
+
+  <ActionDefault name="zoom" text="Zoom" />
+
+  <ActionDefault name="find"     acceleratorName="Control-F" text="Find" image="find" comment="Search"/>
+  <ActionDefault name="findnext" acceleratorName="Control-G" text="Find Next" image="findnext" comment="Search"/>
+
+  <ActionDefault name="editcopy" text="Copy" image="copy" comment="Copy" acceleratorName="Control-C" contextMenu="no"/>
+  <ActionDefault name="editcut" text="Cut" image="cut" comment="Cut" acceleratorName="Control-X" contextMenu="no"/>
+  <ActionDefault name="editpaste" text="Paste" image="paste" comment="Paste" acceleratorName="Control-V" contextMenu="no"/>
+
+  <ActionDefault name="selectall" text="Select All" image="fa-square" comment="Select All Rows" acceleratorName="Control-A" contextMenu="yes"/>
+  
+
+  <ActionDefault name="insert" text="Insert" image="fa-plus"/>
+  <ActionDefault name="append" text="Append" image="fa-plus" />
+  <ActionDefault name="delete" text="Delete" image="fa-minus"/>
+ 
+  <ActionDefault name="dialogtouched" validate="no" defaultView="no"  contextMenu="no"/>
+</ActionDefaultList>

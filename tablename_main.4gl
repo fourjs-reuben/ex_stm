@@ -7,8 +7,8 @@ MAIN
     DEFER QUIT
     OPTIONS FIELD ORDER FORM
     OPTIONS INPUT WRAP
-    
+    CALL ui.Dialog.setDefaultUnbuffered(TRUE)
+
     CALL tablename.init()
-    DISPLAY lib_stm.create_table_sql()
-    CALL lib_stm.input()
+    CALL lib_stm.qbe()
 END MAIN

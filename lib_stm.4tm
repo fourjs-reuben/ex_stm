@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="ANSI_X3.4-1968"?>
+<TopMenu>
+  <TopMenuGroup text="File">
+    <TopMenuCommand name="accept" />
+    <TopMenuCommand name="cancel"/>
+    <TopMenuCommand name="close"/>
+  </TopMenuGroup>
+  <TopMenuGroup text="Edit">
+    <TopMenuCommand name="editcut" />
+    <TopMenuCommand name="editcopy" />
+    <TopMenuCommand name="editpaste" />
+  </TopMenuGroup>
+  <TopMenuGroup text="Maintain">
+    <TopMenuCommand name="query"/>
+    <TopMenuCommand name="add"  />
+    <TopMenuCommand name="update"  />
+    <TopMenuCommand name="remove" />
+    <TopMenuSeparator/>
+    <TopMenuCommand name="first"/>
+    <TopMenuCommand name="previous"  />
+    <TopMenuCommand name="next"  />
+    <TopMenuCommand name="last" />
+    <TopMenuSeparator/>
+    <TopMenuCommand name="zoom" />
+  </TopMenuGroup>
+</TopMenu>

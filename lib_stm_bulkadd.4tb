@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="ANSI_X3.4-1968"?>
+<ToolBar>
+  <ToolBarItem name="find" />
+  <ToolBarItem name="findnext" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="selectall" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="insert" />
+  <ToolBarItem name="append" />
+  <ToolBarItem name="delete" />
+
+  
+</ToolBar>
