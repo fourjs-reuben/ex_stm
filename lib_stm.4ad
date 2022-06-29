@@ -11,7 +11,7 @@
   <ActionDefault name="remove" text="Remove" image="fa-minus"/>
 
   <ActionDefault name="browse" text="Browse" image="fa-table"/>
-  <ActionDefault name="bulkadd" text="Bulk Add" image="fa-expand"/>
+  <ActionDefault name="bulkadd" text="Bulk Add" image="fa-file-excel-o"/>
 
   <ActionDefault name="first" text="First" image="fa-fast-backward"/>
   <ActionDefault name="previous" text="Previous" image="fa-step-backward" />

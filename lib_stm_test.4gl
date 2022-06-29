@@ -14,7 +14,7 @@ MAIN
     CALL ui.Dialog.setDefaultUnbuffered(TRUE)
     CALL ui.Interface.loadStyles("lib_stm")
     CALL ui.Interface.loadActionDefaults("lib_stm")
-    CONNECT TO ":memory:"
+    CONNECT TO ":memory:+driver='dbmsqt'"
 
     
     IF NOT lib_stm_testdata.create() THEN
@@ -25,6 +25,7 @@ MAIN
     END IF
 
     CALL state.init()
+    CALL lib_stm.init()
     CALL lib_stm.maintain()
 
 END MAIN

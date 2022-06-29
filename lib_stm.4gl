@@ -11,12 +11,7 @@ PUBLIC TYPE simple_row_rule_with_error_function_type FUNCTION (row INTEGER) RETU
 PUBLIC TYPE value_valid_function_type FUNCTION (value STRING) RETURNS (BOOLEAN, STRING)
 PUBLIC TYPE record_valid_function_type FUNCTION () RETURNS (BOOLEAN, STRING, STRING)
 
-PUBLIC TYPE set_function_type FUNCTION (fieldname STRING, value STRING)
-PUBLIC TYPE get_function_type FUNCTION (fieldname STRING) RETURNS (STRING)
 
-PUBLIC TYPE set_idx_function_type FUNCTION (i INTEGER)
-PUBLIC TYPE get_idx_function_type FUNCTION () RETURNS INTEGER
-PUBLIC TYPE get_count_function_type FUNCTION () RETURNS INTEGER
 
 -- What information do we have about a database column
 PUBLIC TYPE column_type RECORD
@@ -41,8 +36,7 @@ PUBLIC TYPE table_type RECORD
     title STRING,
     order_by STRING,
     where_clause STRING,
-    set set_function_type,
-    get get_function_type,
+ #   set_rec_function set_rec_function_type,   TODO line not necessary?
     can_view_function simple_rule_function_type,
     can_add_function simple_rule_function_type,
     can_update_function simple_rule_function_type,
@@ -52,20 +46,24 @@ PUBLIC TYPE table_type RECORD
     can_delete_row_function simple_row_rule_function_type,
     key_valid_function record_valid_function_type,
     data_valid_function record_valid_function_type,
-    column DYNAMIC ARRAY OF column_type,
-    count_function get_count_function_type,
-    set_idx_function set_idx_function_type,
-    get_idx_function get_idx_function_type
+    column DYNAMIC ARRAY OF column_type
+   
 END RECORD
 
 
 PUBLIC DEFINE stm table_type
 
-DEFINE stm_rec DICTIONARY OF STRING
+DEFINE stm_rec DICTIONARY OF STRING   # ANYRECORD
 DEFINE stm_idx INTEGER
 DEFINE stm_arr DYNAMIC ARRAY OF RECORD
-    column DICTIONARY OF STRING
+    column DICTIONARY OF STRING       # ANYRECORD
 END RECORD
+
+DEFINE m_key_clause STRING
+DEFINE m_update_clause STRING
+DEFINE m_insert_column_clause STRING
+DEFINE m_insert_values_clause STRING
+
 
 
 
@@ -75,9 +73,17 @@ DEFINE f ui.Form
 
 DEFINE where_clause STRING
 
+FUNCTION init()
+    LET m_key_clause = key_clause()
+    LET m_update_clause = update_clause()
+    LET m_insert_column_clause = insert_column_clause()
+    LET m_insert_values_clause = insert_values_clause()
+END FUNCTION
+
 
 FUNCTION maintain()
 DEFINE ok BOOLEAN
+DEFINE err_text STRING
 DEFINE row INTEGER
 
     IF stm.form IS NOT NULL THEN
@@ -106,24 +112,66 @@ DEFINE row INTEGER
                     LET stm_idx = 1
                     CALL display_row(stm_idx)
                 ELSE
-                    ERROR "No rows found"
+                    CALL show_error_dialog("No rows found", FALSE)
                     LET stm_idx = 0
                 END IF
             END IF
             CALL menu_state(DIALOG)
 
         ON ACTION add
-            #TODO
-            CALL input()
+            LET add_mode = TRUE
+            CALL input() RETURNING ok
+            IF ok THEN
+                CALL insert_row() RETURNING ok, err_text
+                IF ok THEN
+                    CALL stm_arr.appendElement()
+                    CALL stm_rec.copyTo(stm_arr[stm_arr.getLength()].column)
+                ELSE
+                    CALL show_error_dialog(SFMT("Could not insert row %1", err_text), TRUE)
+                END IF
+            ELSE
+                CALL show_error_dialog("Row insert cancelled", FALSE)
+            END IF
+            LET stm_idx = stm_arr.getLength()
+            CALL display_row(stm_idx)
             CALL menu_state(DIALOG)
 
         ON ACTION update
-            #TODO
-            CALL input()
+            CALL stm_arr[stm_idx].column.copyTo(stm_rec)
+            LET add_mode = FALSE
+            CALL input() RETURNING ok
+            IF ok THEN
+                CALL update_row() RETURNING ok, err_text
+                IF ok THEN
+                    CALL stm_rec.copyTo(stm_arr[stm_idx].column)
+                ELSE
+                    CALL show_error_dialog(SFMT("Could not update row %1", err_text), TRUE)
+                END IF
+            ELSE
+                CALL show_error_dialog("Row update cancelled", FALSE)
+            END IF
+            CALL display_row(stm_idx)
             CALL menu_state(DIALOG)
 
         ON ACTION remove
-            #TODO
+            CALL stm_arr[stm_idx].column.copyTo(stm_rec)
+            CALL delete_row() RETURNING ok, err_text
+            IF ok THEN
+                CALL stm_arr.deleteElement(stm_idx)
+                IF stm_idx > stm_arr.getLength() THEN
+                    LET stm_idx = stm_arr.getLength()
+                    IF stm_idx > 0 THEN
+                        CALL display_row(stm_idx)
+                    ELSE
+                        CALL display_clear_row(stm_idx)
+                    END IF
+                ELSE
+                    CALL display_row(stm_idx)
+                END IF
+                MESSAGE "Row deleted"
+            ELSE
+                CALL show_error_dialog(SFMT("Could not delete row %1", err_text), TRUE)
+            END IF
             CALL menu_state(DIALOG)
 
         ON ACTION browse
@@ -199,15 +247,12 @@ END FUNCTION
 
 FUNCTION query()
 DEFINE ev STRING
-DEFINE set_fn set_function_type
 
 DEFINE sb base.StringBuffer
 DEFINE i INTEGER
 DEFINE value STRING
 
     INITIALIZE where_clause TO NULL
-
-    LET set_fn = stm.set 
 
     LET add_mode = TRUE
     
@@ -224,6 +269,7 @@ DEFINE value STRING
         LET ev = d.nextEvent()
         CASE
             WHEN ev = "BEFORE CONSTRUCT"
+                MESSAGE "Enter QBE Criteria"
                 --CALL set_qbe_default_values()
                 
             WHEN ev MATCHES "BEFORE FIELD*"
@@ -236,7 +282,7 @@ DEFINE value STRING
                 #LET int_flag = 0 TODO do we need this line
                 EXIT WHILE
             WHEN ev = "AFTER CONSTRUCT"
-                IF accept() THEN
+                IF qbe_accept() THEN
                     EXIT WHILE
                 END IF
             WHEN ev = "ON ACTION accept"
@@ -315,6 +361,179 @@ DEFINE row,col INTEGER
     CALL hdl.close()
 END FUNCTION
 
+
+
+FUNCTION insert_row()
+DEFINE hdl base.SqlHandle
+DEFINE sql STRING
+DEFINE i INTEGER
+DEFINE ok BOOLEAN, err_text STRING
+
+    LET sql = SFMT("INSERT INTO %1 (%2) VALUES(%3)", stm.name, m_insert_column_clause, m_insert_values_clause)
+    LET hdl = base.SqlHandle.create()
+    CALL hdl.prepare(sql)
+    
+    -- Data fields first
+    FOR i = 1 TO stm.column.getLength()
+        CALL hdl.setParameter(i, stm_rec[stm.column[i].name])
+    END FOR
+    
+    TRY
+        CALL hdl.execute()
+        LET ok = TRUE
+    CATCH
+        LET ok = FALSE
+        LET err_text = SQLCA.sqlcode
+    END TRY
+    CALL hdl.close()
+    RETURN ok, err_text
+END FUNCTION
+
+
+FUNCTION update_row()
+DEFINE hdl base.SqlHandle
+DEFINE sql STRING
+DEFINE i,k INTEGER
+DEFINE ok BOOLEAN, err_text STRING
+
+    LET sql = SFMT("UPDATE %1 SET %2 WHERE %3", stm.name, m_update_clause, m_key_clause)
+    LET hdl = base.SqlHandle.create()
+    CALL hdl.prepare(sql)
+    LET k = 0
+    -- Data fields first
+    FOR i = 1 TO stm.column.getLength()
+        IF NOT stm.column[i].key THEN
+            LET k = k + 1
+            CALL hdl.setParameter(k, stm_rec[stm.column[i].name])
+        END IF
+    END FOR
+    -- Then key fields
+    FOR i = 1 TO stm.column.getLength()
+        IF stm.column[i].key THEN
+            LET k = k + 1
+            CALL hdl.setParameter(k, stm_rec[stm.column[i].name])
+        END IF
+    END FOR
+
+    TRY
+        CALL hdl.execute()
+        LET ok = TRUE
+    CATCH
+        LET ok = FALSE
+        LET err_text = SQLCA.sqlcode
+    END TRY
+    CALL hdl.close()
+    RETURN ok, err_text
+END FUNCTION
+
+
+
+FUNCTION delete_row()
+DEFINE hdl base.SqlHandle
+DEFINE sql STRING
+DEFINE i,k INTEGER
+DEFINE ok BOOLEAN, err_text STRING
+
+
+    LET sql = SFMT("DELETE FROM %1 WHERE %2", stm.name, m_key_clause)
+    
+    LET hdl = base.SqlHandle.create()
+    CALL hdl.prepare(sql)
+    LET k = 0
+    FOR i = 1 TO stm.column.getLength()
+        IF stm.column[i].key THEN
+            LET k = k + 1
+            CALL hdl.setParameter(k, stm_rec[stm.column[i].name])
+        END IF
+    END FOR
+
+    TRY
+        CALL hdl.execute()
+        LET ok = TRUE
+    CATCH
+        LET ok = FALSE
+        LET err_text = SQLCA.sqlcode
+    END TRY
+    CALL hdl.close()
+    RETURN ok, err_text
+END FUNCTION
+
+
+
+PRIVATE FUNCTION key_clause()
+DEFINE sb base.StringBuffer
+DEFINE i INTEGER
+
+   LET sb = base.StringBuffer.create()
+    
+    FOR i = 1 TO stm.column.getLength()
+        IF stm.column[i].key THEN
+            IF sb.getLength() > 0  THEN
+                CALL sb.append(" and ")
+            END IF
+            CALL sb.append(sfmt("%1 = ? ", stm.column[i].name))
+        END IF
+    END FOR
+    RETURN sb.toString()
+END FUNCTION
+
+
+
+PRIVATE FUNCTION update_clause()
+DEFINE sb base.StringBuffer
+DEFINE i INTEGER
+
+    LET sb = base.StringBuffer.create()
+    
+    FOR i = 1 TO stm.column.getLength()
+        IF NOT stm.column[i].key THEN
+            IF sb.getLength() > 0  THEN
+                CALL sb.append(" , ")
+            END IF
+            CALL sb.append(sfmt("%1 = ? ", stm.column[i].name))
+        END IF
+    END FOR
+    RETURN sb.toString()
+END FUNCTION
+
+
+
+PRIVATE FUNCTION insert_column_clause()
+DEFINE sb base.StringBuffer
+DEFINE i INTEGER
+
+    LET sb = base.StringBuffer.create()
+    
+    FOR i = 1 TO stm.column.getLength()
+        IF sb.getLength() > 0  THEN
+            CALL sb.append(" , ")
+        END IF
+        CALL sb.append(stm.column[i].name)
+    END FOR
+    RETURN sb.toString()
+END FUNCTION
+
+
+
+PRIVATE FUNCTION insert_values_clause()
+DEFINE sb base.StringBuffer
+DEFINE i INTEGER
+
+    LET sb = base.StringBuffer.create()
+    
+    FOR i = 1 TO stm.column.getLength()
+        IF sb.getLength() > 0  THEN
+            CALL sb.append(" , ")
+        END IF
+        CALL sb.append(" ? ")
+    END FOR
+    RETURN sb.toString()
+END FUNCTION
+
+
+
+
+
 FUNCTION display_row(row)
 DEFINE row INTEGER
 DEFINE col INTEGER
@@ -324,15 +543,22 @@ DEFINE col INTEGER
     END FOR
 END FUNCTION
 
+FUNCTION display_clear_row(row)
+DEFINE row INTEGER
+DEFINE col INTEGER
+
+    FOR col = 1 TO stm.column.getLength()
+        CALL ui.Form.displayTo(NULL, stm.column[col].name, NULL,NULL)
+    END FOR
+END FUNCTION
+
+
 
 FUNCTION input()
 DEFINE ev STRING
-DEFINE set_fn set_function_type
+DEFINE ok BOOLEAN
+DEFINE i INTEGER
 
-    LET set_fn = stm.set 
-
-    LET add_mode = TRUE
-    
     LET d = ui.Dialog.createInputByName(stm.column)
 
     CALL d.addTrigger("ON ACTION accept")
@@ -348,19 +574,25 @@ DEFINE set_fn set_function_type
             WHEN ev = "BEFORE INPUT"
                 IF add_mode THEN
                     CALL set_default_values()
+                ELSE
+                    FOR i = 1 TO stm.column.getLength()
+                        CALL d.setFieldValue(stm.column[i].name, stm_rec[stm.column[i].name])
+                    END FOR
                 END IF
             WHEN ev MATCHES "BEFORE FIELD*"
                 -- CALL before_field()
             WHEN ev MATCHES "ON CHANGE *"
-                CALL set_fn(d.getCurrentItem(), d.getFieldValue(d.getCurrentItem()))
+                #TODO CALL set_fn(d.getCurrentItem(), d.getFieldValue(d.getCurrentItem()))
+                LET stm_rec[d.getCurrentItem()] = d.getFieldValue(d.getCurrentItem())
                 -- CALL on_change_field()
             WHEN ev MATCHES "AFTER FIELD*"
                 CALL after_field()
             WHEN ev  = "ON ACTION close" OR ev = "ON ACTION cancel"
-                #LET int_flag = 0 TODO do we need this line
+                LET ok = FALSE
                 EXIT WHILE
             WHEN ev = "AFTER INPUT"
                 IF accept() THEN
+                    LET ok = TRUE
                     EXIT WHILE
                 END IF
             WHEN ev = "ON ACTION accept"
@@ -369,7 +601,9 @@ DEFINE set_fn set_function_type
                 DISPLAY "OTHERWISE ", ev
         END CASE
     END WHILE
-    
+
+    LET int_flag = 0
+    RETURN ok
 END FUNCTION
 
 
@@ -377,106 +611,6 @@ END FUNCTION
 
 
 
-FUNCTION qbe()
-DEFINE ev STRING
-DEFINE where_clause STRING
-DEFINE sb base.StringBuffer
-DEFINE i INTEGER
-DEFINE value STRING
-
-DEFINE qbe DYNAMIC ARRAY OF RECORD
-    i, da DYNAMIC ARRAY OF RECORD
-        name, type STRING
-    END RECORD
-END RECORD
-
-    IF stm.form IS NOT NULL THEN
-        OPEN WINDOW w WITH FORM stm.form
-    ELSE
-        OPEN WINDOW w WITH 1 ROWS, 1 COLUMNS
-        CALL create_qbe_grid(ui.Window.getCurrent().createForm(stm.name).getNode())
-    END IF
-
-    LET f = ui.Window.getCurrent().getForm()
-    CALL ui.Window.getCurrent().setText(stm.title)
-    
-   LET d = ui.Dialog.createMultipleDialog()
-    -- Global actions
-    CALL d.addTrigger("ON ACTION accept")
-    CALL d.addTrigger("ON ACTION cancel")
-    CALL d.addTrigger("ON ACTION close")
-
-    -- For each field, add an INPUT, and a DISPLAY ARRAY
-    FOR i = 1 TO stm.column.getLength()
-        LET qbe[i].i[1].name = SFMT("%1_expression", stm.column[i].name)
-        LET qbe[i].i[1].type = "STRING"
-        LET qbe[i].i[2].name = SFMT("%1_value", stm.column[i].name)
-        LET qbe[i].i[2].type = stm.column[i].type
-        LET qbe[i].i[3].name = SFMT("%1_from", stm.column[i].name)
-        LET qbe[i].i[3].type = stm.column[i].type
-        LET qbe[i].i[4].name = SFMT("%1_to", stm.column[i].name)
-        LET qbe[i].i[4].type = stm.column[i].type
-        LET qbe[i].i[5].name = SFMT("%1_matches", stm.column[i].name)
-        LET qbe[i].i[5].type = "STRING"
-
-        CALL d.addInputByName(qbe[i].i, SFMT("qbe_%1", stm.column[i].name))
-       # CALL d.addTrigger(SFMT("ON CHANGE %1_expression", stm.column[i].name))
-    END FOR
-    FOR i = 1 TO stm.column.getLength()
-      #  CALL d.addDisplayArrayTo(qbe[i].da, SFMT("%1_da", stm.column[i].name))
-    END FOR
-
-
-    
-    WHILE TRUE
-        -- Set state
-        CALL qbe_state()
-        
-        LET ev = d.nextEvent()
-        DISPLAy ev
-        CASE
-            WHEN ev = "BEFORE DIALOG"
-                FOR i = 1 TO stm.column.getLength()
-                    CALL f.setFieldHidden(SFMT("%1_value",stm.column[i].name), TRUE)
-                    CALL f.setFieldHidden(SFMT("%1_from", stm.column[i].name), TRUE)
-                    CALL f.setFieldHidden(SFMT("%1_to", stm.column[i].name), TRUE)
-                    CALL f.setFieldHidden(SFMT("%1_matches", stm.column[i].name), TRUE)
-                    CALL f.setElementHidden(SFMT("%1_list", stm.column[i].name), TRUE)
-                END FOR
-
-            WHEN ev MATCHES "ON CHANGE *"
-                DISPLAY "ON CHANGE"
-                CALL on_change_qbe_field(ev)
-                
-
-            WHEN ev  = "ON ACTION close" OR ev = "ON ACTION cancel"
-                #LET int_flag = 0 TODO do we need this line
-                EXIT WHILE
-            WHEN ev = "AFTER DIALOG"
-                IF 1=1 THEN
-                    EXIT WHILE
-                END IF
-            WHEN ev = "ON ACTION accept"
-                CALL d.accept()
-                -- qbe_accept
-            OTHERWISE
-                DISPLAY "OTHERWISE ", ev
-        END CASE
-    END WHILE
-
-    --LET sb = base.StringBuffer.create()
-    --FOR i = 1 TO stm.column.getLength()
-        --LET value = d.getQueryFromField(stm.column[i].name)
-        --IF value IS NOT NULL THEN
-            --IF sb.getLength() > 0 THEN
-                --CALL sb.append(" and ")
-            --END IF
-            --CALL sb.append(value)
-        --END IF
-    --END FOR
-    --LET where_clause =sb.toString()
-    
-END FUNCTION
 
 
 
@@ -489,7 +623,7 @@ DEFINE ok BOOLEAN
     OPEN WINDOW browse WITH 1 ROWS, 1 COLUMNS
     CALL create_table(ui.Window.getCurrent().createForm("browse").getNode())
     CALL ui.Window.getCurrent().setText(SFMT("Browse %1", stm.name))
-     CALL ui.Window.getCurrent().getForm().loadToolBar("lib_stm_browse")
+    CALL ui.Window.getCurrent().getForm().loadToolBar("lib_stm_browse")
 
     LET d = ui.Dialog.createDisplayArrayTo(stm.column,"scr")
 
@@ -605,8 +739,6 @@ DEFINE value BOOLEAN
         LET value = vfn()
         -- Only show field based on value and current value in combobox
         CALL f.setFieldHidden(SFMT("%1_expression",stm.column[i].name), NOT value)
-
-        
     END FOR
 END FUNCTION
 
@@ -616,15 +748,12 @@ PRIVATE FUNCTION set_default_values()
 DEFINE i INTEGER
 DEFINE value STRING
 DEFINE fn default_function_type
-DEFINE set_fn set_function_type
-
-    LET set_fn = stm.set
 
     FOR i = 1 TO stm.column.getLength()
         LET fn = stm.column[i].default_function
         LET value = fn()
+        LET stm_rec[stm.column[i].name]= value
         CALL d.setFieldValue(stm.column[i].name, value)
-        CALL set_fn(stm.column[i].name, value)
     END FOR
 END FUNCTION
 
@@ -653,17 +782,7 @@ PRIVATE FUNCTION on_change_field()
     -- TODO move field into record
 END FUNCTION
 
-PRIVATE FUNCTION on_change_qbe_field(ev)
-DEFINE ev STRING
-DEFINE field_name STRING
-DEFINE pos INTEGER
-    LET field_name = ev.subString(10,ev.getLength())
-    IF field_name MATCHES "*expression" THEN
-        LET pos = field_name.getIndexOf("_expression",1)
-        LET field_name = field_name.subString(1, pos-1)
-        DISPLAY "ON CHANGE",field_name
-    END IF
-END FUNCTION
+
 
 
 PRIVATE FUNCTION after_field()
@@ -761,6 +880,11 @@ END FUNCTION
 
 
 
+PRIVATE FUNCTION qbe_accept()
+    RETURN TRUE
+END FUNCTION
+
+
 PUBLIC FUNCTION create_grid(parent_node om.DomNode)
 DEFINE vbox_node, group_node, grid_node, field_node, label_node, widget_node om.DomNode
 DEFINE i,j,k INTEGER
@@ -829,6 +953,8 @@ FUNCTION create_table(parent_node om.DomNode)
 DEFINE vbox_node, table_node, tablecolumn_node, widget_node, recordview_node, link_node om.DomNode
 DEFINE i INTEGER
 
+    CALL parent_node.setAttribute("minWidth",60)
+    CALL parent_node.setAttribute("minHeight",15)
     LET vbox_node = parent_node.createChild("VBox")
     LET table_node = vbox_node.createChild("Table")
 
@@ -878,6 +1004,156 @@ DEFINE i INTEGER
     END FOR
    
 
+END FUNCTION
+
+
+
+-- Stub Default Functions
+PUBLIC FUNCTION field_visible() RETURNS BOOLEAN
+    RETURN TRUE
+END FUNCTION
+
+PUBLIC FUNCTION field_editable() RETURNS BOOLEAN
+    RETURN TRUE
+END FUNCTION
+
+PUBLIC FUNCTION field_default() RETURNS STRING
+    RETURN NULL
+END FUNCTION
+
+PUBLIC FUNCTION field_valid(value STRING) RETURNS (BOOLEAN, STRING)
+    RETURN TRUE, NULL
+END FUNCTION
+
+
+
+PRIVATE FUNCTION get_data_column_idx(name)
+DEFINE name STRING
+DEFINE i INTEGER
+
+    FOR i = 1 TO stm.column.getLength()
+        IF stm.column[i].name = name THEN
+            RETURN i
+        END IF
+    END FOR
+    EXIT PROGRAM 1 #TODO
+END FUNCTION
+
+
+
+PRIVATE FUNCTION show_error_dialog(text STRING, wait BOOLEAN)
+    IF wait THEN
+        CALL FGL_WINMESSAGE("Error", text, "stop")
+    ELSE
+        ERROR text
+    END IF
+END FUNCTION
+
+
+
+
+
+{
+-- This is a more advanced qbe
+FUNCTION qbe()
+DEFINE ev STRING
+DEFINE where_clause STRING
+DEFINE sb base.StringBuffer
+DEFINE i INTEGER
+DEFINE value STRING
+
+DEFINE qbe DYNAMIC ARRAY OF RECORD
+    i, da DYNAMIC ARRAY OF RECORD
+        name, type STRING
+    END RECORD
+END RECORD
+
+    IF stm.form IS NOT NULL THEN
+        OPEN WINDOW w WITH FORM stm.form
+    ELSE
+        OPEN WINDOW w WITH 1 ROWS, 1 COLUMNS
+        CALL create_qbe_grid(ui.Window.getCurrent().createForm(stm.name).getNode())
+    END IF
+
+    LET f = ui.Window.getCurrent().getForm()
+    CALL ui.Window.getCurrent().setText(stm.title)
+    
+   LET d = ui.Dialog.createMultipleDialog()
+    -- Global actions
+    CALL d.addTrigger("ON ACTION accept")
+    CALL d.addTrigger("ON ACTION cancel")
+    CALL d.addTrigger("ON ACTION close")
+
+    -- For each field, add an INPUT, and a DISPLAY ARRAY
+    FOR i = 1 TO stm.column.getLength()
+        LET qbe[i].i[1].name = SFMT("%1_expression", stm.column[i].name)
+        LET qbe[i].i[1].type = "STRING"
+        LET qbe[i].i[2].name = SFMT("%1_value", stm.column[i].name)
+        LET qbe[i].i[2].type = stm.column[i].type
+        LET qbe[i].i[3].name = SFMT("%1_from", stm.column[i].name)
+        LET qbe[i].i[3].type = stm.column[i].type
+        LET qbe[i].i[4].name = SFMT("%1_to", stm.column[i].name)
+        LET qbe[i].i[4].type = stm.column[i].type
+        LET qbe[i].i[5].name = SFMT("%1_matches", stm.column[i].name)
+        LET qbe[i].i[5].type = "STRING"
+
+        CALL d.addInputByName(qbe[i].i, SFMT("qbe_%1", stm.column[i].name))
+       # CALL d.addTrigger(SFMT("ON CHANGE %1_expression", stm.column[i].name))
+    END FOR
+    FOR i = 1 TO stm.column.getLength()
+      #  CALL d.addDisplayArrayTo(qbe[i].da, SFMT("%1_da", stm.column[i].name))
+    END FOR
+
+
+    
+    WHILE TRUE
+        -- Set state
+        CALL qbe_state()
+        
+        LET ev = d.nextEvent()
+        DISPLAy ev
+        CASE
+            WHEN ev = "BEFORE DIALOG"
+                FOR i = 1 TO stm.column.getLength()
+                    CALL f.setFieldHidden(SFMT("%1_value",stm.column[i].name), TRUE)
+                    CALL f.setFieldHidden(SFMT("%1_from", stm.column[i].name), TRUE)
+                    CALL f.setFieldHidden(SFMT("%1_to", stm.column[i].name), TRUE)
+                    CALL f.setFieldHidden(SFMT("%1_matches", stm.column[i].name), TRUE)
+                    CALL f.setElementHidden(SFMT("%1_list", stm.column[i].name), TRUE)
+                END FOR
+
+            WHEN ev MATCHES "ON CHANGE *"
+                DISPLAY "ON CHANGE"
+                CALL on_change_qbe_field(ev)
+                
+
+            WHEN ev  = "ON ACTION close" OR ev = "ON ACTION cancel"
+                #LET int_flag = 0 TODO do we need this line
+                EXIT WHILE
+            WHEN ev = "AFTER DIALOG"
+                IF 1=1 THEN
+                    EXIT WHILE
+                END IF
+            WHEN ev = "ON ACTION accept"
+                CALL d.accept()
+                -- qbe_accept
+            OTHERWISE
+                DISPLAY "OTHERWISE ", ev
+        END CASE
+    END WHILE
+
+    --LET sb = base.StringBuffer.create()
+    --FOR i = 1 TO stm.column.getLength()
+        --LET value = d.getQueryFromField(stm.column[i].name)
+        --IF value IS NOT NULL THEN
+            --IF sb.getLength() > 0 THEN
+                --CALL sb.append(" and ")
+            --END IF
+            --CALL sb.append(value)
+        --END IF
+    --END FOR
+    --LET where_clause =sb.toString()
+    
 END FUNCTION
 
 
@@ -1039,65 +1315,6 @@ DEFINE field_count INTEGER
     DISPLAY vbox_node.toString()
 END FUNCTION
 
-
-FUNCTION create_table_sql()
-DEFINE i INTEGER
-DEFINE sb base.StringBuffer
-
-    LET sb = base.StringBuffer.create()
-    FOR i = 1 TO stm.column.getLength()
-        IF i > 1 THEN
-            CALL sb.append(", ")
-        END IF
-        CALL sb.append(SFMT("%1 %2", stm.column[i].name, stm.column[i].type))
-    END FOR
-    RETURN sb.toString()
-END FUNCTION
-
-
-
-
--- Stub Default Functions
-PUBLIC FUNCTION field_visible() RETURNS BOOLEAN
-    RETURN TRUE
-END FUNCTION
-
-PUBLIC FUNCTION field_editable() RETURNS BOOLEAN
-    RETURN TRUE
-END FUNCTION
-
-PUBLIC FUNCTION field_default() RETURNS STRING
-    RETURN NULL
-END FUNCTION
-
-PUBLIC FUNCTION field_valid(value STRING) RETURNS (BOOLEAN, STRING)
-    RETURN TRUE, NULL
-END FUNCTION
-
-
-
-PRIVATE FUNCTION get_data_column_idx(name)
-DEFINE name STRING
-DEFINE i INTEGER
-
-    FOR i = 1 TO stm.column.getLength()
-        IF stm.column[i].name = name THEN
-            RETURN i
-        END IF
-    END FOR
-    EXIT PROGRAM 1
-END FUNCTION
-
-
-
-PRIVATE FUNCTION show_error_dialog(text STRING, wait BOOLEAN)
-    IF wait THEN
-        CALL FGL_WINMESSAGE("Error", text, "stop")
-    ELSE
-        ERROR text
-    END IF
-END FUNCTION
-
 PRIVATE FUNCTION combo_expression(combo_node)
 DEFINE combo_node, item_node om.DomNode
 
@@ -1124,3 +1341,19 @@ DEFINE combo_node, item_node om.DomNode
     item_add("inn","is not in")
     
 END FUNCTION
+
+PRIVATE FUNCTION on_change_qbe_field(ev)
+DEFINE ev STRING
+DEFINE field_name STRING
+DEFINE pos INTEGER
+    LET field_name = ev.subString(10,ev.getLength())
+    IF field_name MATCHES "*expression" THEN
+        LET pos = field_name.getIndexOf("_expression",1)
+        LET field_name = field_name.subString(1, pos-1)
+        DISPLAY "ON CHANGE",field_name
+    END IF
+END FUNCTION
+
+#TODO when bug fixed that allows back in
+#PUBLIC TYPE set_rec_function_type FUNCTION (dict DICTIONARY OF STRING) 
+}

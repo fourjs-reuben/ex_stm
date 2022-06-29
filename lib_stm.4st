@@ -2,13 +2,20 @@
 <StyleList>
   <Style name="Window">
      <StyleAttribute name="windowType" value="normal" />
-      <StyleAttribute name="toolBarPosition" value="top" />
+    <StyleAttribute name="toolBarPosition" value="top" />
      <StyleAttribute name="actionPanelPosition" value="bottom" />
      <StyleAttribute name="ringMenuPosition" value="bottom" />
      <StyleAttribute name="statusBarType" value="lines3" />
   </Style>
   <Style name="Window.dialog">
      <StyleAttribute name="windowType" value="modal" />
+  </Style>
+   <Style name=":query">
+     <StyleAttribute name="backgroundColor" value="systemAlternateBackground" />
+  </Style>
+  
+   <Style name="Table:even">
+     <StyleAttribute name="backgroundColor" value="systemAlternateBackground" />
   </Style>
  
 </StyleList>

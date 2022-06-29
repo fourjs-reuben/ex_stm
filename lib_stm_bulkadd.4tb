@@ -4,6 +4,9 @@
   <ToolBarItem name="findnext" />
   <ToolBarSeparator/>
   <ToolBarItem name="selectall" />
+  <ToolBarItem name="editcopy" />
+  <ToolBarItem name="editcut" />
+  <ToolBarItem name="editpaste" />
   <ToolBarSeparator/>
   <ToolBarItem name="insert" />
   <ToolBarItem name="append" />

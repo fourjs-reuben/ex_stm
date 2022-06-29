@@ -4,4 +4,5 @@
   <ToolBarItem name="findnext" />
   <ToolBarSeparator/>
   <ToolBarItem name="selectall" />
+  <ToolBarItem name="editcopy" />
 </ToolBar>

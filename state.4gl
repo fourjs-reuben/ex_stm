@@ -1,13 +1,13 @@
+IMPORT util
+
 IMPORT FGL lib_stm
 
-TYPE tablenameType RECORD
+TYPE tablenameType RECORD  --TODO should this be RECORD LIKE state.*
     state_code CHAR(2),
     state_name CHAR(15)
 END RECORD
 
-#DEFINE arr DYNAMIC ARRAY OF tablenameType
-#DEFINE rec tablenameType
-#DEFINE idx INTEGER
+DEFINE rec tablenameType
 
 -- Populate Fields
 FUNCTION init()
@@ -39,9 +39,6 @@ DEFINE i INTEGER
         LET stm.column[i].valid_function = FUNCTION lib_stm.field_valid
     END FOR
 
-    #LET stm.set = FUNCTION set
-   # LET stm.get = FUNCTION get
-    
     LET stm.can_view_function = FUNCTION can_view
     LET stm.can_add_function = FUNCTION can_add
     LET stm.can_update_function = FUNCTION can_update
@@ -54,47 +51,16 @@ DEFINE i INTEGER
     LET stm.key_valid_function = FUNCTION key_valid
     LET stm.data_valid_function = FUNCTION data_valid
 
-    
-    #LET stm.set_idx_function = FUNCTION set_idx
-    #LET stm.get_idx_function = FUNCTION get_idx
-    #ET stm.count_function = FUNCTION get_count
-    
-END FUNCTION
-{
-FUNCTION get_count() RETURNS INTEGER
-    RETURN arr.getLength()
-END FUNCTION
+    -- Override function
+    LET stm.column[1].valid_function = FUNCTION state_code_valid
+    LET stm.column[2].valid_function = FUNCTION state_name_valid
 
-FUNCTION get_idx() RETURNS INTEGER
-    RETURN idx
-END FUNCTION
-
-FUNCTION set_idx(i INTEGER)
-    LET idx = i
 END FUNCTION
 
 
--- TODO should not need this set function
-FUNCTION set(fieldname STRING, value STRING)
-
-    CASE fieldname
-        WHEN "state_code" LET rec.state_code = value
-        WHEN "state_name" LET rec.state_name = value
-    END CASE
-END FUNCTION
 
 
--- TODO should not need this get function
-FUNCTION get(fieldname STRING) RETURNS STRING
-DEFINE value STRING
 
-    CASE fieldname
-        WHEN "state_code" LET value = rec.state_code
-        WHEN "state_name" LET value = rec.state_name
-    END CASE
-    RETURN value
-END FUNCTION
-}
 
 -- Table level rules
 FUNCTION can_view() RETURNS BOOLEAN
@@ -134,6 +100,83 @@ FUNCTION data_valid() RETURNS (BOOLEAN, STRING, STRING)
     RETURN TRUE, NULL, NULL
 END FUNCTION
 
-FUNCTION key_valid() RETURNS (BOOLEAN, STRING, STRING)
+
+-- If any record available
+FUNCTION data_valid_with_anyrecord(d) RETURNS (BOOLEAN, STRING, STRING)
+DEFINE d tablenameType
+
     RETURN TRUE, NULL, NULL
 END FUNCTION
+
+
+FUNCTION key_valid() RETURNS (BOOLEAN, STRING, STRING)
+
+    SELECT 'X'
+    FROM ex_stm_state 
+    WHERE state_code = rec.state_code
+
+    IF status = NOTFOUND THEN
+        #OK
+    ELSE
+        RETURN FALSE, "Key already exists","state_code"
+    END IF
+    RETURN TRUE, NULL, NULL
+END FUNCTION
+
+-- Field validation
+
+FUNCTION state_code_valid(value STRING)  RETURNS (BOOLEAN, STRING)
+
+    IF value IS NULL THEN
+        RETURN FALSE, "State Code must be entered"
+    END IF
+    IF value.trim().getLength() != 2 THEN
+        RETURN FALSE, "State Code must be 2 characters"
+    END IF
+    RETURN TRUE, NULL
+END FUNCTION
+
+FUNCTION state_name_valid(value STRING) RETURNS (BOOLEAN, STRING)
+
+    IF value IS NULL THEN
+        RETURN FALSE, "State Name must be entered"
+    END IF
+    RETURN TRUE, NULL
+END FUNCTION
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#TODO is this used?
+FUNCTION set_rec(dict DICTIONARY OF STRING)
+    CALL util.JSON.parse(util.JSON.stringify(dict), rec)
+END FUNCTION
+
+
+
+
+{
+From Renes samples
+
+
+
+
+FUNCTION (rec state_rec)data_valid()
+    RETURN TRUE, NULL, NULL
+END FUNCTION
+
+    LET stm.key_valid_function = FUNCTION rec.data_valid
+
+}
