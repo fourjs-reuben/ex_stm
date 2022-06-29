@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Project defaultApplication="-517846809" gstVersion="40100" version="3.4">
+<Project defaultApplication="1447964522" gstVersion="40100" version="3.4">
   <Settings>
     <DynamicProperties version="4">
       <DynamicProperty description="Accent color (Android 5.0 and later)" initialValue="#9575CD" isDefaultInherited="false" isHidden="false" label="Accent color" name="gma-accent-color" readOnly="false" type="COLOR"/>
@@ -91,5 +91,20 @@
         <File filePath="state.4gl"/>
       </VirtualFolder>
     </Application>
+    <Group id="-348255693" label="zzz_dialogrecordinterface" language="Genero" targetDirectory="$(ProjectDir)/dialogrecordinterface">
+      <Application binaryName="dialogrecordinterface" id="-1424452408" label="dialogrecordinterface">
+        <Configuration id="1090537502" label="Configuration"/>
+        <File filePath="dialogrecordinterface/control.4gl"/>
+        <File filePath="dialogrecordinterface/dialogrecordinterface.per"/>
+        <File filePath="dialogrecordinterface/main.4gl"/>
+        <File filePath="dialogrecordinterface/my_table.4gl"/>
+        <File filePath="dialogrecordinterface/user_interface.4gl"/>
+        <File filePath="dialogrecordinterface/wrapper_include.4gl"/>
+      </Application>
+      <Application binaryName="dialogrecordinterfaceexplained" id="-1548501631" label="dialogrecordinterfaceexplained">
+        <Configuration id="1447964522" label="Configuration"/>
+        <File filePath="dialogrecordinterface/dialogrecordinterface_explained.4gl"/>
+      </Application>
+    </Group>
   </Group>
 </Project>
