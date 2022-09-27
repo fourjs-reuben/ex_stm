@@ -1,3 +1,7 @@
+PUBLIC FUNCTION setup_reflection()
+    RETURN reflect.Value.valueOf(arr), reflect.Value.valueOf(rec)
+END FUNCTION
+
 
 
 &define WRAP_FUNCTION_T1_0(p1,p2,p3 ) FUNCTION _ ## p1(rv reflect.Value) \
@@ -42,3 +46,5 @@ DEFINE p2 p3 \
     CALL p1(p2) RETURNING ok, error_text, field_name \
     RETURN ok, error_text, field_name \
 END FUNCTION
+
+

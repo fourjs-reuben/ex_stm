@@ -1,0 +1,24 @@
+LAYOUT
+GRID
+{
+[l01  ][f01     ]
+--------------------------
+[l02  ][f02              ]
+[l03  ][f03       ]
+[l04  ][f04       ]
+[l05  ][f05       ]
+}
+END
+END
+ATTRIBUTES
+LABEL l01: lbl_id;
+LABEL l02: lbl_desc;
+LABEL l03: lbl_dmy;
+LABEL l04: lbl_num;
+LABEL l05: lbl_amt;
+
+EDIT f01 = formonly.id;
+EDIT f02 = formonly.desc;
+DATEEDIT f03 = formonly.dmy;
+EDIT f04 = formonly.num;
+EDIT f05 = formonly.amt, FORMAT="$$$,$$&.&&";

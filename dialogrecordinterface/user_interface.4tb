@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ANSI_X3.4-1968"?>
+<ToolBar>
+  <ToolBarItem name="query" />
+  <ToolBarItem name="browse" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="add" />
+  <ToolBarItem name="update" />
+  <ToolBarItem name="delete" />
+  <ToolBarSeparator/>
+   
+   
+  <ToolBarItem name="first" />
+  <ToolBarItem name="prev" />
+   <ToolBarItem name="goto" />
+  <ToolBarItem name="next" />
+  <ToolBarItem name="last" />
+  <ToolBarSeparator/>
+  <ToolBarItem name="exit" />
+</ToolBar>

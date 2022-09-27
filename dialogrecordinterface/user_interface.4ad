@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="ANSI_X3.4-1968"?>
+<ActionDefaultList>
+  <ActionDefault name="accept" text="OK" acceleratorName="Return" acceleratorName2="Enter" contextMenu="no"  image="accept"/>
+  <ActionDefault name="cancel" validate="no" text="Cancel" acceleratorName="Escape" contextMenu="no"  image="cancel"/>
+
+  <ActionDefault name="query" text="Query" acceleratorName="Control-Q" image="fa-filter" />
+  <ActionDefault name="browse" text="Browse" acceleratorName="Control-B"  image="fa-list"/>
+
+  <ActionDefault name="add" text="Add" acceleratorName="Control-A"  image="fa-plus" />
+  <ActionDefault name="update" text="Update" acceleratorName="Control-U"  image="fa-edit" />
+  <ActionDefault name="delete" text="Delete" acceleratorName="Control-D"  image="fa-minus"/>
+
+  
+
+  <ActionDefault name="first" text="First" acceleratorName="Shift+Left"  image="fa-fast-backward"/>
+  <ActionDefault name="prev" text="Prev" acceleratorName="Left"  image="fa-arrow-left"/>
+  <ActionDefault name="goto" text="Goto" acceleratorName="Control-G"  image="fa-binoculars"/>
+  <ActionDefault name="next" text="Next" acceleratorName="Right"  image="fa-arrow-right" />
+  <ActionDefault name="last" text="Last" acceleratorName="Shift+Right"  image="fa-fast-forward"/>
+  
+  <ActionDefault name="exit" text="Exit" image="fa-sign-out"/>
+  
+</ActionDefaultList>
