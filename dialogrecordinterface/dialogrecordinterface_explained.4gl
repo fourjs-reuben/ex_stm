@@ -1,31 +1,52 @@
 -- Attempt at simpler version of above in order to explain the issue
--- Essentially the parameter for the reference functions needs to be a reflect.value when I would 
--- rather code it as the parameter type.
--- If ANYTYPE / ANYRECORD were available then these might be able to be used
--- instead need the wrapper function to map variable to reflect value etc
+
 
 IMPORT reflect
 
+# ISSUE #1 WITHOUT ANYTYPE, ANY RECORD, use reflect.value in FUNCTION referencing
+#TYPE validate_function_type FUNCTION (value ANYTYPE) RETURNS (BOOLEAN, STRING)
 TYPE validate_function_type FUNCTION (rv reflect.Value) RETURNS (BOOLEAN, STRING)
 
 DEFINE field_validate_list DICTIONARY OF validate_function_type
 
 
 MAIN
-    -- Register the validation function
+
+DEFINE d ui.Dialog
+DEFINE record_rv, field_rv reflect.Value
+DEFINE current_field_name STRING
+
+DEFINE ok BOOLEAN
+DEFINE error_text STRING
+
+    -- INIT
+
+    # ISSUE #1 WITHOUT ANYTYPE, ANY RECORD, use preprocessor to map function defined using reflect.Value to function with actual type
+    #LET field_validate_list["string"] = FUNCTION string_valid
+    #LET field_validate_list["number"] = FUNCTION number_valid
+    #ET field_validate_list["date"]   = FUNCTION date_valid
+    
     LET field_validate_list["string"] = FUNCTION _string_valid
     LET field_validate_list["number"] = FUNCTION _number_valid
-    LET field_validate_list["string"] = FUNCTION _date_valid
+    LET field_validate_list["date"]   = FUNCTION _date_valid
 
+    --  GENERIC DIALOG CODE
 
+    -- assume function to map dialog fields to reflect value for record, hence record_rv is populated, seedialog2rec in user_interface.4gl
+    LET current_field_name = d.getCurrentItem()  -- what is current field we are processing
+    LET field_rv = record_rv.getFieldByName(current_field_name) -- get the field value from the record reflected value
 
+    # ISSUE #2, want to push the reflected Value rather than the reflect Value onto the stack
+    CALL field_validate_list[current_field_name](field_rv) RETURNING ok, error_text
+    #CALL field_validate_list[current_field_name](*field_rv) RETURNING ok, error_text
 
+    
 END MAIN
 
 
 
-FUNCTION string_valid(s)
-DEFINE s STRING
+FUNCTION string_valid(s STRING) RETURNS (BOOLEAN, STRING)
+
     IF s.getLength() > 3 THEN
         #OK
     ELSE
@@ -34,8 +55,8 @@ DEFINE s STRING
     RETURN TRUE, ""
 END FUNCTION
 
-FUNCTION number_valid(n)
-DEFINE n INTEGER
+FUNCTION number_valid(n INTEGER) RETURNS (BOOLEAN, STRING)
+
     IF n >=100 THEN
         #OK
     ELSE
@@ -44,8 +65,8 @@ DEFINE n INTEGER
     RETURN TRUE, ""
 END FUNCTION
 
-FUNCTION date_valid(d)
-DEFINE d DATE
+FUNCTION date_valid(d DATE) RETURNS (BOOLEAN, STRING)
+
     IF d> TODAY THEN
         #OK
     ELSE

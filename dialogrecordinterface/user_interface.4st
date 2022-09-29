@@ -3,7 +3,10 @@
   <Style name="Window">
      <StyleAttribute name="windowType" value="normal" />
      <StyleAttribute name="actionPanelPosition" value="bottom" />
+     <StyleAttribute name="actionPanelButtonSize" value="40em" />
      <StyleAttribute name="ringMenuPosition" value="bottom" />
+     <StyleAttribute name="ringMenuButtonSize" value="40em" />
+
   </Style>
   
   <Style name="Window.dialog">
