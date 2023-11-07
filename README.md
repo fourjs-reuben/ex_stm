@@ -8,3 +8,5 @@ This is my working repository for a single table maintenance program utilising d
 Whenever onsite we always see programs with names such as Customer Maintenance, Product Maintenance, Supplier Maintenance, Debtor Maintenance, Creditor Maintenance, GL Account Maintenance, etc.  These programs are always have the same structure but that structure has been coded into every program, rather than being defined once and reused.  The introduction of dynamic dialogs in Genero 3.00 and function references in 3.10 makes it easier to define the structure once.  
 
 Refer to MODEL.md page for an overview of the model used
+
+(Change to update language)
